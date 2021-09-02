@@ -19,7 +19,7 @@ class AirbyteSourceAcceptanceTestPlugin implements Plugin<Project> {
                         '-w', "$targetMountDirectory",
                         '-e', "AIRBYTE_SAT_CONNECTOR_DIR=${project.projectDir.absolutePath}",
                         'airbyte/source-acceptance-test',
-                        '-p', 'integration_tests.acceptance',
+                        '-p', 'source_acceptance_test.plugin',
                     ]
                     commandLine args
                 }
