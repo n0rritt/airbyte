@@ -6,7 +6,7 @@ import json
 from typing import Any, Mapping
 
 from airbyte_cdk.models import SyncMode
-from source_snapchat_marketing.source import Adaccounts, Organizations, SnapchatAdsOauth2Authenticator, get_depend_on_ids
+from source_snapchat_marketing.source import Adaccounts, Organizations, SnapchatAdsOauth2Authenticator, get_depend_on_records
 
 
 def _config() -> Mapping[str, Any]:
@@ -36,7 +36,7 @@ def test_get_depend_on_ids_none():
     # sync_mode: SyncMode, cursor_field: List[str] = None, stream_state: Mapping[str, Any] = None
     depends_on_stream = None
     slice_key_name = None
-    ids = get_depend_on_ids(depends_on_stream, depends_on_stream_config, slice_key_name)
+    ids = get_depend_on_records(depends_on_stream, depends_on_stream_config, slice_key_name)
     assert ids == [None]
 
 
@@ -45,7 +45,7 @@ def test_get_depend_on_ids_1():
     # sync_mode: SyncMode, cursor_field: List[str] = None, stream_state: Mapping[str, Any] = None
     depends_on_stream = Organizations
     slice_key_name = "organization_id"
-    ids = get_depend_on_ids(depends_on_stream, depends_on_stream_config, slice_key_name)
+    ids = get_depend_on_records(depends_on_stream, depends_on_stream_config, slice_key_name)
     assert ids == expected_organization_ids
 
 
@@ -56,5 +56,5 @@ def test_get_depend_on_ids_2():
     """
     depends_on_stream = Adaccounts
     slice_key_name = "ad_account_id"
-    ids = get_depend_on_ids(depends_on_stream, depends_on_stream_config, slice_key_name)
+    ids = get_depend_on_records(depends_on_stream, depends_on_stream_config, slice_key_name)
     assert ids == expected_adaccount_ids
