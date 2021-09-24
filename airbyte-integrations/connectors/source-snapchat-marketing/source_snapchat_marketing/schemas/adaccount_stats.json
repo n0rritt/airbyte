@@ -1,0 +1,782 @@
+{
+  "type": ["null", "object"],
+  "properties": {
+    "id": {
+      "type": ["null", "string"]
+    },
+    "type": {
+      "type": ["null", "string"]
+    },
+    "start_time": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "end_time": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "finalized_data_end_time": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "conversion_data_processed_end_time": {
+      "type": ["null", "string"],
+      "format": "date-time"
+    },
+    "breakdown_stats": {
+      "type": ["null", "object"],
+      "properties": {
+        "campaign": {
+          "type": ["null", "array"],
+          "items": {
+            "type": ["null", "object"],
+            "properties": {
+              "id": {
+                "type": ["null", "string"]
+              },
+              "type": {
+                "type": ["null", "string"]
+              },
+              "granularity": {
+                "type": ["null", "string"]
+              },
+              "start_time": {
+                "type": ["null", "string"],
+                "format": "date-time"
+              },
+              "end_time": {
+                "type": ["null", "string"],
+                "format": "date-time"
+              },
+              "timeseries": {
+                "type": ["null", "array"],
+                "items": {
+                  "type": ["null", "object"],
+                  "properties": {
+                    "start_time": {
+                      "type": ["null", "string"],
+                      "format": "date-time"
+                    },
+                    "end_time": {
+                      "type": ["null", "string"],
+                      "format": "date-time"
+                    },
+                    "stats": {
+                      "type": ["null", "object"],
+                      "properties": {
+                        "impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "swipes": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "view_completion": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_view_completion": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_total_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "frequency": {
+                          "type": ["null", "number"]
+                        },
+                        "avg_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "swipe_up_percent": {
+                          "type": ["null", "number"]
+                        },
+                        "attachment_frequency": {
+                          "type": ["null", "number"]
+                        },
+                        "attachment_avg_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "uniques": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_uniques": {
+                          "type": ["null", "integer"]
+                        },
+                        "earned_reach": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_reach": {
+                          "type": ["null", "integer"]
+                        },
+                        "spend": {
+                          "type": ["null", "integer"]
+                        },
+                        "view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views_time_based": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views_15s": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "earned_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "paid_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "screen_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "avg_screen_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "shares": {
+                          "type": ["null", "integer"]
+                        },
+                        "play_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "saves": {
+                          "type": ["null", "integer"]
+                        },
+                        "native_leads": {
+                          "type": ["null", "integer"]
+                        },
+                        "ios_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "android_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_purchases": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_purchases_value": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_save": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_start_checkout": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_cart": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_view_content": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_billing": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_searches": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_level_completes": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_app_opens": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_page_views": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_subscribe": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_ad_click": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_ad_view": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_complete_tutorial": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_invite": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_login": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_share": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_reserve": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_achievement_unlocked": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_to_wishlist": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_spend_credits": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_rate": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_start_trial": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_list_view": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_4": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_5":{
+                          "type": ["null", "integer"]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "adsquad": {
+          "type": ["null", "array"],
+          "items": {
+            "type": ["null", "object"],
+            "properties": {
+              "id": {
+                "type": ["null", "string"]
+              },
+              "type": {
+                "type": ["null", "string"]
+              },
+              "granularity": {
+                "type": ["null", "string"]
+              },
+              "start_time": {
+                "type": ["null", "string"],
+                "format": "date-time"
+              },
+              "end_time": {
+                "type": ["null", "string"],
+                "format": "date-time"
+              },
+              "timeseries": {
+                "type": ["null", "array"],
+                "items": {
+                  "type": ["null", "object"],
+                  "properties": {
+                    "start_time": {
+                      "type": ["null", "string"],
+                      "format": "date-time"
+                    },
+                    "end_time": {
+                      "type": ["null", "string"],
+                      "format": "date-time"
+                    },
+                    "stats": {
+                      "type": ["null", "object"],
+                      "properties": {
+                        "impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "swipes": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "view_completion": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_view_completion": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_total_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "frequency": {
+                          "type": ["null", "number"]
+                        },
+                        "avg_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "swipe_up_percent": {
+                          "type": ["null", "number"]
+                        },
+                        "attachment_frequency": {
+                          "type": ["null", "number"]
+                        },
+                        "attachment_avg_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "uniques": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_uniques": {
+                          "type": ["null", "integer"]
+                        },
+                        "earned_reach": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_reach": {
+                          "type": ["null", "integer"]
+                        },
+                        "spend": {
+                          "type": ["null", "integer"]
+                        },
+                        "view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views_time_based": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views_15s": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "earned_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "paid_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "screen_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "avg_screen_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "shares": {
+                          "type": ["null", "integer"]
+                        },
+                        "play_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "saves": {
+                          "type": ["null", "integer"]
+                        },
+                        "native_leads": {
+                          "type": ["null", "integer"]
+                        },
+                        "ios_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "android_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_purchases": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_purchases_value": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_save": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_start_checkout": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_cart": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_view_content": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_billing": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_searches": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_level_completes": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_app_opens": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_page_views": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_subscribe": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_ad_click": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_ad_view": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_complete_tutorial": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_invite": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_login": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_share": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_reserve": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_achievement_unlocked": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_to_wishlist": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_spend_credits": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_rate": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_start_trial": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_list_view": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_4": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_5":{
+                          "type": ["null", "integer"]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "ad": {
+          "type": ["null", "array"],
+          "items": {
+            "type": ["null", "object"],
+            "properties": {
+              "id": {
+                "type": ["null", "string"]
+              },
+              "type": {
+                "type": ["null", "string"]
+              },
+              "granularity": {
+                "type": ["null", "string"]
+              },
+              "start_time": {
+                "type": ["null", "string"],
+                "format": "date-time"
+              },
+              "end_time": {
+                "type": ["null", "string"],
+                "format": "date-time"
+              },
+              "timeseries": {
+                "type": ["null", "array"],
+                "items": {
+                  "type": ["null", "object"],
+                  "properties": {
+                    "start_time": {
+                      "type": ["null", "string"],
+                      "format": "date-time"
+                    },
+                    "end_time": {
+                      "type": ["null", "string"],
+                      "format": "date-time"
+                    },
+                    "stats": {
+                      "type": ["null", "object"],
+                      "properties": {
+                        "impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "swipes": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "quartile_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "view_completion": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_quartile_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_view_completion": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_total_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "frequency": {
+                          "type": ["null", "number"]
+                        },
+                        "avg_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "swipe_up_percent": {
+                          "type": ["null", "number"]
+                        },
+                        "attachment_frequency": {
+                          "type": ["null", "number"]
+                        },
+                        "attachment_avg_view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "uniques": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "attachment_uniques": {
+                          "type": ["null", "integer"]
+                        },
+                        "earned_reach": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_reach": {
+                          "type": ["null", "integer"]
+                        },
+                        "spend": {
+                          "type": ["null", "integer"]
+                        },
+                        "view_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views_time_based": {
+                          "type": ["null", "integer"]
+                        },
+                        "video_views_15s": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "earned_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "paid_impressions": {
+                          "type": ["null", "integer"]
+                        },
+                        "screen_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "avg_screen_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "shares": {
+                          "type": ["null", "integer"]
+                        },
+                        "play_time_millis": {
+                          "type": ["null", "integer"]
+                        },
+                        "saves": {
+                          "type": ["null", "integer"]
+                        },
+                        "native_leads": {
+                          "type": ["null", "integer"]
+                        },
+                        "ios_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "android_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "total_installs": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_purchases": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_purchases_value": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_save": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_start_checkout": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_cart": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_view_content": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_billing": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_searches": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_level_completes": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_app_opens": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_page_views": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_subscribe": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_ad_click": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_ad_view": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_complete_tutorial": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_invite": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_login": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_share": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_reserve": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_achievement_unlocked": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_add_to_wishlist": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_spend_credits": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_rate": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_start_trial": {
+                          "type": ["null", "integer"]
+                        },
+                        "conversion_list_view": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_1": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_2": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_3": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_4": {
+                          "type": ["null", "integer"]
+                        },
+                        "custom_event_5":{
+                          "type": ["null", "integer"]
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  }
+}

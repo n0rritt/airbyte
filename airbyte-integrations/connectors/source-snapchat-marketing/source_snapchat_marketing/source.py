@@ -30,7 +30,7 @@ from airbyte_cdk.sources.streams.http.auth import Oauth2Authenticator
 #   ]
 # }
 #
-auxiliary_id_map = {}
+auxiliary_record_map = {}
 
 # The default value that is returned by stream_slices if there is no slice found: [None]
 default_stream_slices_return_value = [None]
@@ -40,7 +40,7 @@ class SnapchatMarketingException(Exception):
     """Just for formatting the exception as SnapchatMarketing"""
 
 
-def get_depend_on_ids(depends_on_stream, depends_on_stream_config: Mapping, slice_key_name: str) -> List:
+def get_depend_on_records(depends_on_stream, depends_on_stream_config: Mapping, slice_key_names: List[str]) -> List:
     """This auxiliary function is to help retrieving the ids from another stream
 
     :param depends_on_stream: The stream class from what we need to retrieve ids
@@ -67,8 +67,8 @@ def get_depend_on_ids(depends_on_stream, depends_on_stream_config: Mapping, slic
     # This auxiliary_id_map is used to prevent the extracting of ids that are used in most streams
     # Instead of running the request to get (for example) AdAccounts for each stream as slices we put them in the dict and
     # return if the same ids are requested in the stream. This saves us a lot of time and requests
-    if depends_on_stream.__name__ in auxiliary_id_map:
-        return auxiliary_id_map[depends_on_stream.__name__]
+    if depends_on_stream.__name__ in auxiliary_record_map:
+        return auxiliary_record_map[depends_on_stream.__name__]
 
     # Some damn logic a?
     # Relax, that has some meaning:
@@ -95,20 +95,23 @@ def get_depend_on_ids(depends_on_stream, depends_on_stream_config: Mapping, slic
 
     depend_on_stream = depends_on_stream(**depends_on_stream_config)
     depend_on_stream_slices = depend_on_stream.stream_slices(sync_mode=SyncMode.full_refresh)
-    depend_on_stream_ids = []
+    depend_on_stream_records = []
 
-    if depend_on_stream_slices != default_stream_slices_return_value:
-        for depend_on_stream_slice in depend_on_stream_slices:
+    for depend_on_stream_slice in depend_on_stream_slices:
+        if depend_on_stream_slice:
             records = depend_on_stream.read_records(sync_mode=SyncMode.full_refresh, stream_slice=depend_on_stream_slice)
-            depend_on_stream_ids += [{slice_key_name: record["id"]} for record in records]
-    else:
-        depend_on_stream_ids = [{slice_key_name: record["id"]} for record in depend_on_stream.read_records(sync_mode=SyncMode.full_refresh)]
+        else:
+            records = depend_on_stream.read_records(sync_mode=SyncMode.full_refresh)
 
-    if not depend_on_stream_ids:
+        for record in records:
+            stream_slice = {key_name: record[key_name] for key_name in slice_key_names}
+            depend_on_stream_records.append(stream_slice)
+
+    if not depend_on_stream_records:
         return []
 
-    auxiliary_id_map[depends_on_stream.__name__] = depend_on_stream_ids
-    return depend_on_stream_ids
+    auxiliary_record_map[depends_on_stream.__name__] = depend_on_stream_records
+    return depend_on_stream_records
 
 
 class SnapchatMarketingStream(HttpStream, ABC):
@@ -179,7 +182,7 @@ class SnapchatMarketingStream(HttpStream, ABC):
 class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
     cursor_field = "updated_at"
     depends_on_stream = None
-    slice_key_name = "ad_account_id"
+    slice_key_names = ["id"]
 
     last_slice = None
     current_slice = None
@@ -187,10 +190,12 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
 
     def stream_slices(self, **kwargs) -> Iterable[Optional[Mapping[str, Any]]]:
         depends_on_stream_config = {"authenticator": self.authenticator, "start_date": self.start_date}
-        stream_slices = get_depend_on_ids(self.depends_on_stream, depends_on_stream_config, self.slice_key_name)
+        stream_slices = get_depend_on_records(self.depends_on_stream, depends_on_stream_config, self.slice_key_names)
 
         if not stream_slices:
-            self.logger.error(f"No {self.slice_key_name}s found. {self.name} cannot be extracted without {self.slice_key_name}.")
+            self.logger.error(
+                f"Following keys {self.slice_key_names} have not been found in {self.depends_on_stream.__name__}."
+                f" {self.name} cannot be extracted without them.")
             yield from []
 
         self.last_slice = stream_slices[-1]
@@ -246,7 +251,8 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
             yield from records
 
     def path(self, stream_slice: Mapping[str, Any] = None, **kwargs) -> str:
-        return f"adaccounts/{stream_slice[self.slice_key_name]}/{self.response_root_name}"
+        account_id = stream_slice.get("id")
+        return f"adaccounts/{account_id}/{self.response_root_name}"
 
 
 class Organizations(SnapchatMarketingStream):
@@ -260,10 +266,10 @@ class Adaccounts(IncrementalSnapchatMarketingStream):
     """Docs: https://marketingapi.snapchat.com/docs/#get-all-ad-accounts"""
 
     depends_on_stream = Organizations
-    slice_key_name = "organization_id"
 
     def path(self, stream_slice: Mapping[str, Any] = None, **kwargs) -> str:
-        return f"organizations/{stream_slice[self.slice_key_name]}/adaccounts"
+        organization_id = stream_slice.get("id")
+        return f"organizations/{organization_id}/adaccounts"
 
 
 class Creatives(IncrementalSnapchatMarketingStream):
@@ -304,6 +310,147 @@ class Segments(IncrementalSnapchatMarketingStream):
     """Docs: https://marketingapi.snapchat.com/docs/#get-all-audience-segments"""
 
     depends_on_stream = Adaccounts
+
+
+class AdaccountStats(IncrementalSnapchatMarketingStream):
+    """ Docs: https://marketingapi.snapchat.com/docs/#measurement """
+
+    cursor_field = "end_time"
+    depends_on_stream = Adaccounts
+    slice_key_names = ["id", "timezone"]
+
+    def __init__(self, granularity, **kwargs):
+        super().__init__(**kwargs)
+        self.granularity = granularity
+
+    @property
+    def response_root_name(self):
+        root_name = None
+        if self.granularity == "TOTAL":
+            root_name = "total_stats"
+        elif self.granularity == "LIFETIME":
+            root_name = "lifetime_stats"
+        elif self.granularity in ("DAY", "HOUR"):
+            root_name = "timeseries_stats"
+        else:
+            ValueError(f"Unsupported granularity type '{self.granularity}'"
+                       f" must be one of 'TOTAL', 'DAY', 'HOUR' or 'LIFETIME'")
+        return root_name
+
+    @staticmethod
+    def _get_rounded_datetime(datetime="", timezone="", granularity="TOTAL"):
+        """
+        Helper function to format timestamps URL parameters according to requirements of Snapchat API
+        """
+        if datetime:
+            result = pendulum.parse(datetime).in_timezone(timezone)
+        else:
+            result = pendulum.now(timezone)
+
+        if granularity == "LIFETIME":
+            # on LIFETIME granularity the API does not expect any values for start_time and end_time
+            result = None
+        elif granularity == "DAY":
+            # on DAY granularity the API expects timestamps to start and end at midnight
+            result = result.start_of("day")
+        else:
+            result = result.start_of("hour")
+        return result
+
+    def path(self, stream_slice: Mapping[str, Any] = None, **kwargs) -> str:
+        account_id = stream_slice.get("id")
+        return f"adaccounts/{account_id}/stats"
+
+    def request_params(
+        self,
+        stream_state: Mapping[str, Any],
+        stream_slice: Mapping[str, any] = None,
+        next_page_token: Mapping[str, Any] = None
+    ) -> MutableMapping[str, Any]:
+        if stream_slice:
+            account_timezone = stream_slice.get("timezone")
+        else:
+            account_timezone = None
+
+        start_time = AdaccountStats._get_rounded_datetime(
+            self.start_date,
+            timezone=account_timezone,
+            granularity=self.granularity
+        )
+        end_time = AdaccountStats._get_rounded_datetime(
+            timezone=account_timezone,
+            granularity=self.granularity
+        )
+        params = {
+            "start_time": start_time,
+            "end_time": end_time,
+            "granularity": self.granularity
+        }
+        return params
+
+    def read_records(
+        self, stream_state: Mapping[str, Any] = None, stream_slice: Mapping[str, Any] = None, **kwargs
+    ) -> Iterable[Mapping[str, Any]]:
+        """
+        Based on the breakdown_stats property in the json_schema, we have to call the Snapchat API multiple times to get
+        the account statistics with breakdowns on campaign, adsquad and/or ad level.
+        Usually it would be enough to get the most granular breakdown on ad level and sum the metrics up for adsquads
+        and campaigns, but we want to account also for use cases where metrics have to be returned aggregated on higher
+        reporting levels from the API.
+        Since the response structure for these 3 levels are basically the same, we will merge the campaign, adsquad and
+        ad level statistics as sub-items in the "breakdown_stats" field of the response_root_name, so that all are
+        included in a unified adaccount_stats stream.
+        """
+        stream_state = stream_state or {}
+        json_schema = self.get_json_schema()
+        breakdown_entities = json_schema.get("properties", {}).get("breakdown_stats", {}).get("properties", {})
+        merged_response = {}
+        for breakdown_level, breakdown_fields in breakdown_entities.items():
+            pagination_complete = False
+            next_page_token = None
+            stats_fields = ','.join(
+                breakdown_fields.get("items", {}).get("properties", {})
+                .get("timeseries", {}).get("items", {}).get("properties", {})
+                .get("stats", {}).get("properties", {}).keys()
+            )
+            parsed_responses = []
+
+            while not pagination_complete:
+                request_headers = self.request_headers(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token)
+                request = self._create_prepared_request(
+                    path=self.path(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
+                    headers=dict(request_headers, **self.authenticator.get_auth_header()),
+                    params=self.request_params(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
+                    json=self.request_body_json(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
+                    data=self.request_body_data(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
+                )
+                request_kwargs = self.request_kwargs(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token)
+
+                # inject URL params to breakdown account statistics on the specified level and with required fields
+                original_url = request.url
+                request.prepare_url(original_url, {"breakdown": breakdown_level, "fields": stats_fields})
+
+                response = self._send_request(request, request_kwargs)
+                parsed_responses.extend(self.parse_response(response, stream_state=stream_state, stream_slice=stream_slice))
+
+                next_page_token = self.next_page_token(response)
+                if not next_page_token:
+                    pagination_complete = True
+
+            for resp in parsed_responses:
+                account_stats_key = "".join([
+                    resp.get("id"), resp.get("type"), resp.get("start_time"), resp.get("end_time")])
+                if account_stats_key in merged_response:
+                    # if the parsed response contain stats for an adaccount that we already have parsed we just want
+                    # to extend the "breakdown_stats" field to include the different breakdown levels (i.e.
+                    # campaign, adsquad and ad statistics)
+                    merged_response[account_stats_key]["breakdown_stats"] = {
+                        **merged_response[account_stats_key].get("breakdown_stats", {}),
+                        **resp.get("breakdown_stats", {})}
+                else:
+                    merged_response[account_stats_key] = resp
+
+        return merged_response.values()
 
 
 class SnapchatAdsOauth2Authenticator(Oauth2Authenticator):
@@ -362,6 +509,9 @@ class SourceSnapchatMarketing(AbstractSource):
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         auth = SnapchatAdsOauth2Authenticator(config)
         kwargs = {"authenticator": auth, "start_date": config["start_date"]}
+        stats_kwargs = {
+            "granularity": config["granularity"]
+        }
         return [
             Adaccounts(**kwargs),
             Ads(**kwargs),
@@ -371,4 +521,5 @@ class SourceSnapchatMarketing(AbstractSource):
             Media(**kwargs),
             Organizations(**kwargs),
             Segments(**kwargs),
+            AdaccountStats(**{**kwargs, **stats_kwargs}),
         ]
