@@ -41,13 +41,12 @@ class SnapchatMarketingException(Exception):
 
 
 def get_depend_on_records(depends_on_stream, depends_on_stream_config: Mapping, slice_key_names: List[str]) -> List:
-    """This auxiliary function is to help retrieving the ids from another stream
+    """This auxiliary function is to help retrieving specific fields from another stream
 
     :param depends_on_stream: The stream class from what we need to retrieve ids
     :param depends_on_stream_config: parameters for depends_on_stream class
-    :param slice_key_name: The key in result slices generator
-    :param logger: Logger to log the messages
-    :returns: empty list in case no ids of the stream was found or list with {slice_key_name: id}
+    :param slice_key_names: The keys that should be extracted from the depends_on_stream
+    :returns: empty list in case no keys of the stream was found or list of dictionaries
     """
 
     # The trick with this code is that some streams are chained:
@@ -64,20 +63,20 @@ def get_depend_on_records(depends_on_stream, depends_on_stream_config: Mapping, 
     if depends_on_stream is None:
         return default_stream_slices_return_value
 
-    # This auxiliary_id_map is used to prevent the extracting of ids that are used in most streams
-    # Instead of running the request to get (for example) AdAccounts for each stream as slices we put them in the dict and
-    # return if the same ids are requested in the stream. This saves us a lot of time and requests
+    # This auxiliary_record_map is used to prevent the extracting of ids that are used in most streams
+    # Instead of running the request to get (for example) AdAccounts for each stream as slices we put them in the dict
+    # and return if the same ids are requested in the stream. This saves us a lot of time and requests
     if depends_on_stream.__name__ in auxiliary_record_map:
         return auxiliary_record_map[depends_on_stream.__name__]
 
     # Some damn logic a?
     # Relax, that has some meaning:
-    # if we want to get just 1 level of parent ids (For example AdAccounts need the organization_ids from Organizations, but
-    # Organizations do not have slices and returns [None] from stream_slices method) this switch goes for else clause and get all the
-    # organization_ids from Organizations and return them as slices
-    # But in case we want to retrieve 2 levels of parent ids (For example we run Creatives stream - it needs the ad_account_ids from AdAccount
-    # and AdAccount need organization_ids from Organizations and first we must get all organization_ids
-    # and for each of them get the ad_account_ids) so switch goes to if claus to get all the nested ids.
+    # if we want to get just 1 level of parent ids (For example AdAccounts need the organization_ids from Organizations,
+    # but Organizations do not have slices and returns [None] from stream_slices method) this switch goes for else
+    # clause and get all the organization_ids from Organizations and return them as slices.
+    # But in case we want to retrieve 2 levels of parent IDs (For example we run Creatives stream - it needs the
+    # "id" from AdAccount and AdAccount needs "id" from Organizations, thus we must get all Organization IDs and for
+    # each of them get the AdAccount IDs) so switch goes to if clause to get all the nested IDs.
     # Let me visualize this for you:
     #
     #           organization_id_1                      organization_id_2
@@ -85,10 +84,9 @@ def get_depend_on_records(depends_on_stream, depends_on_stream_config: Mapping, 
     #                /   \                                  /   \
     # ad_account_id_1     ad_account_id_2    ad_account_id_3     ad_account_id_4
     #
-    # So for the AdAccount slices will be [{'organization_id': organization_id_1}, {'organization_id': organization_id_2}]
+    # So for the AdAccount slices will be [{'id': organization_id_1}, {'id': organization_id_2}]
     # And for the Creatives (Media, Ad, AdSquad, etc...) the slices will be
-    # [{'ad_account_id': ad_account_id_1}, {'ad_account_id': ad_account_id_2},
-    #  {'ad_account_id': ad_account_id_3},{'ad_account_id': ad_account_id_4}]
+    # [{'id': ad_account_id_1}, {'id': ad_account_id_2}, {'id': ad_account_id_3}, {'id': ad_account_id_4}]
     #
     # After getting all the account_ids, they go as slices to Creatives (Media, Ad, AdSquad, etc...)
     # and are used in the path function as a path variables according to the API docs
@@ -99,7 +97,8 @@ def get_depend_on_records(depends_on_stream, depends_on_stream_config: Mapping, 
 
     for depend_on_stream_slice in depend_on_stream_slices:
         if depend_on_stream_slice:
-            records = depend_on_stream.read_records(sync_mode=SyncMode.full_refresh, stream_slice=depend_on_stream_slice)
+            records = depend_on_stream.read_records(
+                sync_mode=SyncMode.full_refresh, stream_slice=depend_on_stream_slice)
         else:
             records = depend_on_stream.read_records(sync_mode=SyncMode.full_refresh)
 
@@ -148,8 +147,8 @@ class SnapchatMarketingStream(HttpStream, ABC):
         if next_page_cursor:
             return {"cursor": dict(parse_qsl(urlparse(next_page_cursor["next_link"]).query))["cursor"]}
 
-    def request_params(
-        self, stream_state: Mapping[str, Any], stream_slice: Mapping[str, any] = None, next_page_token: Mapping[str, Any] = None
+    def request_params(self, stream_state: Mapping[str, Any],
+                       stream_slice: Mapping[str, any] = None, next_page_token: Mapping[str, Any] = None
     ) -> MutableMapping[str, Any]:
         return next_page_token or {}
 
@@ -173,7 +172,8 @@ class SnapchatMarketingStream(HttpStream, ABC):
         json_response = response.json().get(self.response_root_name)
         for resp in json_response:
             if self.response_item_name not in resp:
-                error_text = f"JSON field named '{self.response_item_name}' is absent in the response for {self.name} stream"
+                error_text = f"JSON field named '{self.response_item_name}'" \
+                             f" is absent in the response for {self.name} stream"
                 self.logger.error(error_text)
                 raise SnapchatMarketingException(error_text)
             yield resp.get(self.response_item_name)
@@ -182,6 +182,7 @@ class SnapchatMarketingStream(HttpStream, ABC):
 class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
     cursor_field = "updated_at"
     depends_on_stream = None
+    # keys that are needed from depends_on_stream object
     slice_key_names = ["id"]
 
     last_slice = None
@@ -201,12 +202,15 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
         self.last_slice = stream_slices[-1]
         yield from stream_slices
 
-    def get_updated_state(self, current_stream_state: MutableMapping[str, Any], latest_record: Mapping[str, Any]) -> Mapping[str, Any]:
+    def get_updated_state(self, current_stream_state: MutableMapping[str, Any],
+                          latest_record: Mapping[str, Any]) -> Mapping[str, Any]:
         """
         I see you have a lot of questions to this function. I will try to explain.
-        The problem that it solves is next: records from the streams that used nested ids logic (see the get_depend_on_ids function comments below)
-        can have different, non ordered timestamp in update_at cursor_field and because of they are extracted with slices
-        it is a messy task to make the stream works as incremental. To understand it better the read of nested stream data can be next:
+        The problem that it solves is next: records from the streams that used nested ids logic (see the
+        get_depend_on_records function comments below) can have different, non ordered timestamp in
+        update_at cursor_field and because of they are extracted with slices it is a messy task to make the stream
+        works as incremental.
+        To understand it better the read of nested stream data can be next:
 
         # Reading the data subset for the ad_account_id_1 - first slice
         {"updated_at": "2021-07-22T10:32:05.719Z", other_fields}
@@ -218,9 +222,10 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
         {"updated_at": "2021-06-11T08:04:42.202Z", other_fields}
         {"updated_at": "2021-06-09T13:12:56.350Z", other_fields}
 
-        As you can see the cursor_field (updated_at) values are not ordered and even more - they are descending in some kind
-        The standard logic for incremental cannot be done, because in this case after the first slice
-        the stream_state will be 2021-07-22T10:42:03.830Z, but the second slice data is less then this value, so it will not be yield
+        As you can see the cursor_field (updated_at) values are not ordered and even more - they are descending in some
+        kind. The standard logic for incremental cannot be done, because in this case after the first slice.
+        The stream_state will be 2021-07-22T10:42:03.830Z, but the second slice data is less then this value,
+        so it will not yield a result.
 
         So the next approach was implemented: Until the last slice is processed the stream state remains initial (whenever it is a start_date
         or the saved stream_state from the state.json), but the maximum value is calculated and saved in class max_state value.
@@ -317,6 +322,9 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
 
     cursor_field = "end_time"
     depends_on_stream = Adaccounts
+    # for API calls we need the "id" to get all breakdown stats for a specific AdAccount
+    # and the timezone is required because start and end timestamps have to be specified with the timezone offset
+    # of the according account
     slice_key_names = ["id", "timezone"]
 
     def __init__(self, granularity, **kwargs):
@@ -393,7 +401,7 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
     ) -> Iterable[Mapping[str, Any]]:
         """
         Based on the breakdown_stats property in the json_schema, we have to call the Snapchat API multiple times to get
-        the account statistics with breakdowns on campaign, adsquad and/or ad level.
+        the account statistics with breakdowns on campaign, adsquad and ad level.
         Usually it would be enough to get the most granular breakdown on ad level and sum the metrics up for adsquads
         and campaigns, but we want to account also for use cases where metrics have to be returned aggregated on higher
         reporting levels from the API.
@@ -416,22 +424,28 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
             parsed_responses = []
 
             while not pagination_complete:
-                request_headers = self.request_headers(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token)
+                common_request_kwargs = {
+                    "stream_state": stream_state,
+                    "stream_slice": stream_slice,
+                    "next_page_token": next_page_token
+                }
+                request_headers = self.request_headers(**common_request_kwargs)
                 request = self._create_prepared_request(
-                    path=self.path(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
+                    path=self.path(**common_request_kwargs),
                     headers=dict(request_headers, **self.authenticator.get_auth_header()),
-                    params=self.request_params(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
-                    json=self.request_body_json(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
-                    data=self.request_body_data(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token),
+                    params=self.request_params(**common_request_kwargs),
+                    json=self.request_body_json(**common_request_kwargs),
+                    data=self.request_body_data(**common_request_kwargs),
                 )
-                request_kwargs = self.request_kwargs(stream_state=stream_state, stream_slice=stream_slice, next_page_token=next_page_token)
+                request_kwargs = self.request_kwargs(**common_request_kwargs)
 
                 # inject URL params to breakdown account statistics on the specified level and with required fields
                 original_url = request.url
                 request.prepare_url(original_url, {"breakdown": breakdown_level, "fields": stats_fields})
 
                 response = self._send_request(request, request_kwargs)
-                parsed_responses.extend(self.parse_response(response, stream_state=stream_state, stream_slice=stream_slice))
+                parsed_responses.extend(
+                    self.parse_response(response, stream_state=stream_state, stream_slice=stream_slice))
 
                 next_page_token = self.next_page_token(response)
                 if not next_page_token:
@@ -441,7 +455,7 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
                 account_stats_key = "".join([
                     resp.get("id"), resp.get("type"), resp.get("start_time"), resp.get("end_time")])
                 if account_stats_key in merged_response:
-                    # if the parsed response contain stats for an adaccount that we already have parsed we just want
+                    # if the parsed response contain stats for an adaccount that we already have parsed, we just want
                     # to extend the "breakdown_stats" field to include the different breakdown levels (i.e.
                     # campaign, adsquad and ad statistics)
                     merged_response[account_stats_key]["breakdown_stats"] = {
