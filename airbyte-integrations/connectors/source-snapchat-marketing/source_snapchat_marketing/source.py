@@ -97,8 +97,7 @@ def get_depend_on_records(depends_on_stream, depends_on_stream_config: Mapping, 
 
     for depend_on_stream_slice in depend_on_stream_slices:
         if depend_on_stream_slice:
-            records = depend_on_stream.read_records(
-                sync_mode=SyncMode.full_refresh, stream_slice=depend_on_stream_slice)
+            records = depend_on_stream.read_records(sync_mode=SyncMode.full_refresh, stream_slice=depend_on_stream_slice)
         else:
             records = depend_on_stream.read_records(sync_mode=SyncMode.full_refresh)
 
@@ -147,8 +146,8 @@ class SnapchatMarketingStream(HttpStream, ABC):
         if next_page_cursor:
             return {"cursor": dict(parse_qsl(urlparse(next_page_cursor["next_link"]).query))["cursor"]}
 
-    def request_params(self, stream_state: Mapping[str, Any],
-                       stream_slice: Mapping[str, any] = None, next_page_token: Mapping[str, Any] = None
+    def request_params(
+        self, stream_state: Mapping[str, Any], stream_slice: Mapping[str, any] = None, next_page_token: Mapping[str, Any] = None
     ) -> MutableMapping[str, Any]:
         return next_page_token or {}
 
@@ -169,11 +168,13 @@ class SnapchatMarketingStream(HttpStream, ABC):
         So the response_root_name will be "organizations", and the response_item_name will be "organization"
         Also, the client side filtering for incremental sync is used
         """
-        json_response = response.json().get(self.response_root_name)
+        json_response = response.json()
+        if not json_response:
+            raise SnapchatMarketingException("No valid JSON response from API")
+        json_response = json_response.get(self.response_root_name)
         for resp in json_response:
             if self.response_item_name not in resp:
-                error_text = f"JSON field named '{self.response_item_name}'" \
-                             f" is absent in the response for {self.name} stream"
+                error_text = f"JSON field named '{self.response_item_name}' is absent in the response for {self.name} stream"
                 self.logger.error(error_text)
                 raise SnapchatMarketingException(error_text)
             yield resp.get(self.response_item_name)
@@ -189,6 +190,12 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
     current_slice = None
     first_run = True
 
+    def __init__(self, start_date, **kwargs):
+        super().__init__(start_date, **kwargs)
+
+        self.initial_state = self.start_date
+        self.max_state = self.initial_state
+
     def stream_slices(self, **kwargs) -> Iterable[Optional[Mapping[str, Any]]]:
         depends_on_stream_config = {"authenticator": self.authenticator, "start_date": self.start_date}
         stream_slices = get_depend_on_records(self.depends_on_stream, depends_on_stream_config, self.slice_key_names)
@@ -196,14 +203,14 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
         if not stream_slices:
             self.logger.error(
                 f"Following keys {self.slice_key_names} have not been found in {self.depends_on_stream.__name__}."
-                f" {self.name} cannot be extracted without them.")
+                f" {self.name} cannot be extracted without them."
+            )
             yield from []
 
         self.last_slice = stream_slices[-1]
         yield from stream_slices
 
-    def get_updated_state(self, current_stream_state: MutableMapping[str, Any],
-                          latest_record: Mapping[str, Any]) -> Mapping[str, Any]:
+    def get_updated_state(self, current_stream_state: MutableMapping[str, Any], latest_record: Mapping[str, Any]) -> Mapping[str, Any]:
         """
         I see you have a lot of questions to this function. I will try to explain.
         The problem that it solves is next: records from the streams that used nested ids logic (see the
@@ -233,9 +240,12 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
         Thus all the slices data are compared to the initial state, but only on the last one we write it to the stream state.
         This approach gives us the maximum state value of all the records and we exclude the state updates between slice processing
         """
-        if not current_stream_state:
-            current_stream_state = {self.cursor_field: self.start_date}
-        return {self.cursor_field: max(latest_record.get(self.cursor_field, ""), current_stream_state.get(self.cursor_field, ""))}
+        if self.first_run:
+            self.first_run = False
+            return {self.cursor_field: self.initial_state or self.start_date}
+        else:
+            self.max_state = max(self.max_state, latest_record[self.cursor_field])
+            return {self.cursor_field: self.max_state if self.current_slice == self.last_slice else self.initial_state}
 
     def read_records(
         self, stream_state: Mapping[str, Any] = None, stream_slice: Mapping[str, Any] = None, **kwargs
@@ -341,8 +351,7 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
         elif self.granularity in ("DAY", "HOUR"):
             root_name = "timeseries_stats"
         else:
-            ValueError(f"Unsupported granularity type '{self.granularity}'"
-                       f" must be one of 'TOTAL', 'DAY', 'HOUR' or 'LIFETIME'")
+            ValueError(f"Unsupported granularity type '{self.granularity}' must be one of 'TOTAL', 'DAY', 'HOUR' or 'LIFETIME'")
         return root_name
 
     @staticmethod
@@ -370,30 +379,16 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
         return f"adaccounts/{account_id}/stats"
 
     def request_params(
-        self,
-        stream_state: Mapping[str, Any],
-        stream_slice: Mapping[str, any] = None,
-        next_page_token: Mapping[str, Any] = None
+        self, stream_state: Mapping[str, Any], stream_slice: Mapping[str, any] = None, next_page_token: Mapping[str, Any] = None
     ) -> MutableMapping[str, Any]:
         if stream_slice:
             account_timezone = stream_slice.get("timezone")
         else:
             account_timezone = None
 
-        start_time = AdaccountStats._get_rounded_datetime(
-            self.start_date,
-            timezone=account_timezone,
-            granularity=self.granularity
-        )
-        end_time = AdaccountStats._get_rounded_datetime(
-            timezone=account_timezone,
-            granularity=self.granularity
-        )
-        params = {
-            "start_time": start_time,
-            "end_time": end_time,
-            "granularity": self.granularity
-        }
+        start_time = AdaccountStats._get_rounded_datetime(self.start_date, timezone=account_timezone, granularity=self.granularity)
+        end_time = AdaccountStats._get_rounded_datetime(timezone=account_timezone, granularity=self.granularity)
+        params = {"start_time": start_time, "end_time": end_time, "granularity": self.granularity}
         return params
 
     def read_records(
@@ -409,6 +404,7 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
         ad level statistics as sub-items in the "breakdown_stats" field of the response_root_name, so that all are
         included in a unified adaccount_stats stream.
         """
+        self.current_slice = stream_slice
         stream_state = stream_state or {}
         json_schema = self.get_json_schema()
         breakdown_entities = json_schema.get("properties", {}).get("breakdown_stats", {}).get("properties", {})
@@ -416,19 +412,20 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
         for breakdown_level, breakdown_fields in breakdown_entities.items():
             pagination_complete = False
             next_page_token = None
-            stats_fields = ','.join(
-                breakdown_fields.get("items", {}).get("properties", {})
-                .get("timeseries", {}).get("items", {}).get("properties", {})
-                .get("stats", {}).get("properties", {}).keys()
+            stats_fields = ",".join(
+                breakdown_fields.get("items", {})
+                .get("properties", {})
+                .get("timeseries", {})
+                .get("items", {})
+                .get("properties", {})
+                .get("stats", {})
+                .get("properties", {})
+                .keys()
             )
             parsed_responses = []
 
             while not pagination_complete:
-                common_request_kwargs = {
-                    "stream_state": stream_state,
-                    "stream_slice": stream_slice,
-                    "next_page_token": next_page_token
-                }
+                common_request_kwargs = {"stream_state": stream_state, "stream_slice": stream_slice, "next_page_token": next_page_token}
                 request_headers = self.request_headers(**common_request_kwargs)
                 request = self._create_prepared_request(
                     path=self.path(**common_request_kwargs),
@@ -444,23 +441,22 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
                 request.prepare_url(original_url, {"breakdown": breakdown_level, "fields": stats_fields})
 
                 response = self._send_request(request, request_kwargs)
-                parsed_responses.extend(
-                    self.parse_response(response, stream_state=stream_state, stream_slice=stream_slice))
+                parsed_responses.extend(self.parse_response(response, stream_state=stream_state, stream_slice=stream_slice))
 
                 next_page_token = self.next_page_token(response)
                 if not next_page_token:
                     pagination_complete = True
 
             for resp in parsed_responses:
-                account_stats_key = "".join([
-                    resp.get("id"), resp.get("type"), resp.get("start_time"), resp.get("end_time")])
+                account_stats_key = "".join([resp.get("id"), resp.get("type"), resp.get("start_time"), resp.get("end_time")])
                 if account_stats_key in merged_response:
                     # if the parsed response contain stats for an adaccount that we already have parsed, we just want
                     # to extend the "breakdown_stats" field to include the different breakdown levels (i.e.
                     # campaign, adsquad and ad statistics)
                     merged_response[account_stats_key]["breakdown_stats"] = {
                         **merged_response[account_stats_key].get("breakdown_stats", {}),
-                        **resp.get("breakdown_stats", {})}
+                        **resp.get("breakdown_stats", {}),
+                    }
                 else:
                     merged_response[account_stats_key] = resp
 
@@ -523,9 +519,7 @@ class SourceSnapchatMarketing(AbstractSource):
     def streams(self, config: Mapping[str, Any]) -> List[Stream]:
         auth = SnapchatAdsOauth2Authenticator(config)
         kwargs = {"authenticator": auth, "start_date": config["start_date"]}
-        stats_kwargs = {
-            "granularity": config["granularity"]
-        }
+        stats_kwargs = {"granularity": config["granularity"]}
         return [
             Adaccounts(**kwargs),
             Ads(**kwargs),
