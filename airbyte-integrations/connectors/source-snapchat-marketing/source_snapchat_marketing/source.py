@@ -35,6 +35,9 @@ auxiliary_record_map = {}
 # The default value that is returned by stream_slices if there is no slice found: [None]
 default_stream_slices_return_value = [None]
 
+# maximum number of days that Snapchat API will allow for reports per request
+MAX_REPORT_DAYS = 31
+
 
 class SnapchatMarketingException(Exception):
     """Just for formatting the exception as SnapchatMarketing"""
@@ -381,15 +384,45 @@ class AdaccountStats(IncrementalSnapchatMarketingStream):
     def request_params(
         self, stream_state: Mapping[str, Any], stream_slice: Mapping[str, any] = None, next_page_token: Mapping[str, Any] = None
     ) -> MutableMapping[str, Any]:
+        account_timezone = None
+        start_date = self.start_date
+        end_date = None
+        granularity = self.granularity
+
         if stream_slice:
             account_timezone = stream_slice.get("timezone")
-        else:
-            account_timezone = None
+            start_date = stream_slice.get("start_date", start_date)
+            end_date = stream_slice.get("end_date")
 
-        start_time = AdaccountStats._get_rounded_datetime(self.start_date, timezone=account_timezone, granularity=self.granularity)
-        end_time = AdaccountStats._get_rounded_datetime(timezone=account_timezone, granularity=self.granularity)
-        params = {"start_time": start_time, "end_time": end_time, "granularity": self.granularity}
+        start_time = AdaccountStats._get_rounded_datetime(datetime=start_date, timezone=account_timezone, granularity=granularity)
+        end_time = AdaccountStats._get_rounded_datetime(datetime=end_date, timezone=account_timezone, granularity=granularity)
+        params = {"start_time": start_time, "end_time": end_time, "granularity": granularity}
         return params
+
+    def stream_slices(self, **kwargs) -> Iterable[Optional[Mapping[str, Any]]]:
+        slices = super().stream_slices(**kwargs)
+        for slice in slices:
+            account_timezone = slice.get("timezone")
+
+            first_start_date = slice.get("start_date", self.start_date)
+            first_start_date = AdaccountStats._get_rounded_datetime(
+                datetime=first_start_date, timezone=account_timezone, granularity=self.granularity
+            )
+
+            final_end_date = AdaccountStats._get_rounded_datetime(timezone=account_timezone, granularity=self.granularity)
+
+            report_timeframe = final_end_date - first_start_date
+
+            # Snapchat API only allows reports for 31 days maximum
+            report_iterations = report_timeframe.days // MAX_REPORT_DAYS
+            # so we try to call the API multiple times with chunks of reporting dates
+            for i in range(report_iterations + 1):
+                start_date = first_start_date + pendulum.duration(days=i * MAX_REPORT_DAYS)
+                end_date = min(start_date + pendulum.duration(days=MAX_REPORT_DAYS - 1), final_end_date)
+
+                slice["start_date"] = start_date.to_iso8601_string()
+                slice["end_date"] = end_date.to_iso8601_string()
+                yield slice
 
     def read_records(
         self, stream_state: Mapping[str, Any] = None, stream_slice: Mapping[str, Any] = None, **kwargs
