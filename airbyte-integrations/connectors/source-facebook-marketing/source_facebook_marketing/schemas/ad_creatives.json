@@ -1374,9 +1374,6 @@
         }
       }
     },
-    "thumbnail_data_url": {
-      "type": ["null", "string"]
-    },
     "thumbnail_url": {
       "type": ["null", "string"]
     },

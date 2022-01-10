@@ -3,10 +3,8 @@
 #
 
 import logging
-from datetime import datetime
-from typing import Any, List, Mapping, MutableMapping, Optional, Tuple, Type
+from typing import Any, List, Mapping, MutableMapping, Tuple, Type
 
-import pendulum
 from airbyte_cdk.logger import AirbyteLogger
 from airbyte_cdk.models import (
     AirbyteConnectionStatus,
@@ -21,8 +19,8 @@ from airbyte_cdk.sources.streams import Stream
 from airbyte_cdk.sources.streams.core import package_name_from_class
 from airbyte_cdk.sources.utils.schema_helpers import ResourceSchemaLoader
 from jsonschema import RefResolver
-from pydantic import BaseModel, Field
 from source_facebook_marketing.api import API
+from source_facebook_marketing.common import ConnectorConfig
 from source_facebook_marketing.streams import (
     AdCreatives,
     Ads,
@@ -41,65 +39,6 @@ from source_facebook_marketing.streams import (
 logger = logging.getLogger("airbyte")
 
 
-class InsightConfig(BaseModel):
-
-    name: str = Field(description="The name value of insight")
-
-    fields: Optional[List[str]] = Field(description="A list of chosen fields for fields parameter", default=[])
-
-    breakdowns: Optional[List[str]] = Field(description="A list of chosen breakdowns for breakdowns", default=[])
-
-    action_breakdowns: Optional[List[str]] = Field(description="A list of chosen action_breakdowns for action_breakdowns", default=[])
-
-
-class ConnectorConfig(BaseModel):
-    class Config:
-        title = "Source Facebook Marketing"
-
-    account_id: str = Field(description="The Facebook Ad account ID to use when pulling data from the Facebook Marketing API.")
-
-    access_token: str = Field(
-        description='The value of the access token generated. See the <a href="https://docs.airbyte.io/integrations/sources/facebook-marketing">docs</a> for more information',
-        airbyte_secret=True,
-    )
-
-    start_date: datetime = Field(
-        description="The date from which you'd like to replicate data for AdCreatives and AdInsights APIs, in the format YYYY-MM-DDT00:00:00Z. All data generated after this date will be replicated.",
-        pattern="^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
-        examples=["2017-01-25T00:00:00Z"],
-    )
-
-    end_date: Optional[datetime] = Field(
-        description="The date until which you'd like to replicate data for AdCreatives and AdInsights APIs, in the format YYYY-MM-DDT00:00:00Z. All data generated between start_date and this date will be replicated. Not setting this option will result in always syncing the latest data.",
-        pattern="^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
-        examples=["2017-01-26T00:00:00Z"],
-        default_factory=pendulum.now,
-    )
-
-    fetch_thumbnail_images: bool = Field(
-        default=False, description="In each Ad Creative, fetch the thumbnail_url and store the result in thumbnail_data_url"
-    )
-
-    include_deleted: bool = Field(default=False, description="Include data from deleted campaigns, ads, and adsets")
-
-    insights_lookback_window: int = Field(
-        default=28,
-        description="The attribution window for the actions",
-        minimum=0,
-        maximum=28,
-    )
-
-    insights_days_per_job: int = Field(
-        default=7,
-        description="Number of days to sync in one job (the more data you have, the smaller this parameter should be)",
-        minimum=1,
-        maximum=30,
-    )
-    custom_insights: Optional[List[InsightConfig]] = Field(
-        description="A list wich contains insights entries, each entry must have a name and can contains fields, breakdowns or action_breakdowns)"
-    )
-
-
 class SourceFacebookMarketing(AbstractSource):
     def check_connection(self, logger, config: Mapping[str, Any]) -> Tuple[bool, Any]:
         """Connection check to validate that the user-provided config can be used to connect to the underlying API
@@ -112,9 +51,20 @@ class SourceFacebookMarketing(AbstractSource):
         error_msg = None
 
         try:
-            config = ConnectorConfig.parse_obj(config)  # FIXME: this will be not need after we fix CDK
-            api = API(account_id=config.account_id, access_token=config.access_token)
-            logger.info(f"Select account {api.account}")
+            config = ConnectorConfig(**config)
+            api = API(config)
+            account_ids = {str(account["account_id"]) for account in api.accounts}
+
+            if config.account_selection_strategy_is_subset:
+                config_account_ids = set(config.accounts.ids)
+                if not config_account_ids.issubset(account_ids):
+                    raise Exception(f"Account Ids: {config_account_ids.difference(account_ids)} not found on this user.")
+            elif config.account_selection_strategy_is_all:
+                if not account_ids:
+                    raise Exception("You don't have accounts assigned to this user.")
+            else:
+                raise Exception("Incorrect account selection strategy.")
+
             ok = True
         except Exception as exc:
             error_msg = repr(exc)
@@ -126,8 +76,8 @@ class SourceFacebookMarketing(AbstractSource):
 
         :param config: A Mapping of the user input configuration as defined in the connector spec.
         """
-        config: ConnectorConfig = ConnectorConfig.parse_obj(config)  # FIXME: this will be not need after we fix CDK
-        api = API(account_id=config.account_id, access_token=config.access_token)
+        config = ConnectorConfig(**config)
+        api = API(config)
 
         insights_args = dict(
             api=api,
@@ -141,7 +91,7 @@ class SourceFacebookMarketing(AbstractSource):
             Campaigns(api=api, start_date=config.start_date, end_date=config.end_date, include_deleted=config.include_deleted),
             AdSets(api=api, start_date=config.start_date, end_date=config.end_date, include_deleted=config.include_deleted),
             Ads(api=api, start_date=config.start_date, end_date=config.end_date, include_deleted=config.include_deleted),
-            AdCreatives(api=api, fetch_thumbnail_images=config.fetch_thumbnail_images),
+            AdCreatives(api=api),
             AdsInsights(**insights_args),
             AdsInsightsAgeAndGender(**insights_args),
             AdsInsightsCountry(**insights_args),
@@ -208,10 +158,13 @@ class SourceFacebookMarketing(AbstractSource):
 
     def _check_custom_insights_entries(self, insights: List[Mapping[str, Any]]):
 
-        loader = ResourceSchemaLoader(package_name_from_class(self.__class__))
-        default_fields = list(loader.get_schema("ads_insights").get("properties", {}).keys())
-        default_breakdowns = list(loader.get_schema("ads_insights_breakdowns").get("properties", {}).keys())
-        default_action_breakdowns = list(loader.get_schema("ads_insights_action_breakdowns").get("properties", {}).keys())
+        default_fields = list(
+            ResourceSchemaLoader(package_name_from_class(self.__class__)).get_schema("ads_insights").get("properties", {}).keys()
+        )
+        default_breakdowns = list(
+            ResourceSchemaLoader(package_name_from_class(self.__class__)).get_schema("ads_insights_breakdowns").get("properties", {}).keys()
+        )
+        default_actions_breakdowns = [e for e in default_breakdowns if "action_" in e]
 
         for insight in insights:
             if insight.get("fields"):
@@ -225,7 +178,7 @@ class SourceFacebookMarketing(AbstractSource):
                     message = f"{value} is not a valid breakdown name"
                     raise Exception("Config validation error: " + message) from None
             if insight.get("action_breakdowns"):
-                value_checked, value = self._check_values(default_action_breakdowns, insight.get("action_breakdowns"))
+                value_checked, value = self._check_values(default_actions_breakdowns, insight.get("action_breakdowns"))
                 if not value_checked:
                     message = f"{value} is not a valid action_breakdown name"
                     raise Exception("Config validation error: " + message) from None
