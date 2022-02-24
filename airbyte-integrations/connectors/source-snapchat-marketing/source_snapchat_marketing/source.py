@@ -263,7 +263,7 @@ class IncrementalSnapchatMarketingStream(SnapchatMarketingStream, ABC):
         records = super().read_records(stream_slice=stream_slice, stream_state=stream_state, **kwargs)
         if stream_state:
             for record in records:
-                if record[self.cursor_field] > stream_state.get(self.cursor_field):
+                if record.get(self.cursor_field, '') > stream_state.get(self.cursor_field):
                     yield record
         else:
             yield from records

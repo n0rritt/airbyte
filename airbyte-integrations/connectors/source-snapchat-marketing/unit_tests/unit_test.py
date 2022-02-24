@@ -333,7 +333,7 @@ def mocked_requests_send(request: PreparedRequest, **kwargs):
 
 
 def test_get_depend_on_ids_none(depends_on_stream_config):
-    """ Testing the stream that has non parent dependency (like Organizations has no dependency) """
+    """Testing the stream that has non parent dependency (like Organizations has no dependency)"""
     # sync_mode: SyncMode, cursor_field: List[str] = None, stream_state: Mapping[str, Any] = None
     depends_on_stream = None
     slice_key_name = None
@@ -342,7 +342,7 @@ def test_get_depend_on_ids_none(depends_on_stream_config):
 
 
 def test_get_depend_on_ids_1(depends_on_stream_config):
-    """ Testing the stream that has 1 level parent dependency (like Adaccounts has dependency on Organizations) """
+    """Testing the stream that has 1 level parent dependency (like Adaccounts has dependency on Organizations)"""
     depends_on_stream = Organizations
     slice_key_names = ["id"]
 
