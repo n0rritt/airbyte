@@ -1,0 +1,39 @@
+{
+  "documentationUrl": "https://docsurl.com",
+  "connectionSpecification": {
+    "$schema": "http://json-schema.org/draft-07/schema#",
+    "title": "Freshchat Spec",
+    "type": "object",
+    "required": ["region", "api_key"],
+    "additionalProperties": false,
+    "properties": {
+      "region": {
+        "type": "array",
+        "description": "The region your Freshchat account belongs to, the API endpoint differs dependent on that.",
+        "title": "Region",
+        "items": {
+          "type": "string",
+          "enum": ["United States", "Europe", "India", "Australia"]
+        }
+      },
+      "api_key": {
+        "type": "string",
+        "title": "API Key",
+        "description": "Freshchat API Key",
+        "airbyte_secret": true
+      },
+      "requests_per_minute": {
+        "title": "Requests per minute",
+        "type": "integer",
+        "description": "The number of requests per minute that this source allowed to use."
+      },
+      "start_date": {
+        "title": "Start Date",
+        "description": "UTC date and time. Any data created after this date will be replicated. If this parameter is not set, all data will be replicated.",
+        "format": "date-time",
+        "pattern": "^[0-9]{4}-[0-9]{2}-[0-9]{2}T[0-9]{2}:[0-9]{2}:[0-9]{2}Z$",
+        "examples": ["2020-12-01T00:00:00Z"]
+      }
+    }
+  }
+}
